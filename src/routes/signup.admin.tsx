@@ -9,9 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertCircle, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
-import { registerAdminLocal } from "@/lib/local-auth";
+import { registerAdmin, loginAdmin } from "@/lib/auth";
 
 export const Route = createFileRoute("/signup/admin")({
   head: () => ({
@@ -28,7 +35,7 @@ const schema = z
     companyName: z.string().min(1, "Company name is required").max(120),
     organizationNumber: z.string().min(3, "Enter your organization number").max(40),
     description: z.string().min(1, "A short description is required").max(1000),
-    companyPhone: z.string().min(4, "Enter a valid phone number").max(40),
+    companyPhone: z.string().min(12, "Phone number must be at least 12 characters (e.g. +461234567890)").max(15, "Phone number is too long"),
     companyEmail: z.string().email("Enter a valid email").max(255),
     password: z.string().min(8, "At least 8 characters"),
     confirmPassword: z.string(),
@@ -43,6 +50,8 @@ function AdminSignup() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [accessCode, setAccessCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -62,15 +71,34 @@ function AdminSignup() {
     try {
       const { confirmPassword: _c, ...rest } = parsed.data;
       void _c;
-      registerAdminLocal(rest);
-      toast.success("Company created!");
-      navigate({ to: "/dashboard" });
+      const res = await registerAdmin(rest);
+      const code = res.admin.adminAccessCode ?? null;
+      setAccessCode(code);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not create account. Please try again.";
       setFormError(msg);
       toast.error(msg);
-    } finally {
       setPending(false);
+    }
+  }
+
+  async function handleCodeDone() {
+    const fd = new FormData(document.getElementById("admin-form") as HTMLFormElement);
+    const raw = Object.fromEntries(fd.entries()) as Record<string, string>;
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) return;
+    const { confirmPassword: _c, ...rest } = parsed.data;
+    void _c;
+    await loginAdmin(rest.companyEmail, rest.password);
+    toast.success("Company created!");
+    navigate({ to: "/dashboard" });
+  }
+
+  function handleCopy() {
+    if (accessCode) {
+      navigator.clipboard.writeText(accessCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   }
 
@@ -85,7 +113,7 @@ function AdminSignup() {
               <CardDescription>Set up your company on ThreadLog. You can invite your team after.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={onSubmit} className="space-y-4" noValidate>
+              <form id="admin-form" onSubmit={onSubmit} className="space-y-4" noValidate>
                 {formError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -116,6 +144,33 @@ function AdminSignup() {
         </div>
       </main>
       <Footer />
+
+      <Dialog open={accessCode !== null} onOpenChange={(open) => { if (!open) handleCodeDone(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Company created!</DialogTitle>
+            <DialogDescription>
+              Share this code with your employees so they can join your company on ThreadLog.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <p className="text-sm text-muted-foreground">Your company access code</p>
+            <div className="flex items-center gap-2">
+              <code className="rounded-md bg-muted px-4 py-2 text-2xl font-bold tracking-widest text-foreground">
+                {accessCode}
+              </code>
+              <Button size="icon" variant="outline" onClick={handleCopy} title="Copy code">
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-center pb-2">
+            <Button onClick={handleCodeDone} className="w-full sm:w-auto">
+              Go to dashboard
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

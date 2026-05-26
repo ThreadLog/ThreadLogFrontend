@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { loginLocal } from "@/lib/local-auth";
+import { login } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/login")({
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
+  adminAccessCode: z.string().optional(),
 });
 
 function LoginPage() {
@@ -41,6 +42,7 @@ function LoginPage() {
     const parsed = schema.safeParse({
       email: String(fd.get("email") ?? ""),
       password: String(fd.get("password") ?? ""),
+      adminAccessCode: String(fd.get("adminAccessCode") ?? ""),
     });
     if (!parsed.success) {
       const errs: Record<string, string> = {};
@@ -51,7 +53,7 @@ function LoginPage() {
     }
     setPending(true);
     try {
-      loginLocal(parsed.data.email, parsed.data.password);
+      await login(parsed.data.email, parsed.data.password, parsed.data.adminAccessCode);
       toast.success("Welcome back!");
       navigate({ to: "/dashboard" });
     } catch (err) {
@@ -90,6 +92,10 @@ function LoginPage() {
                   <Label htmlFor="password">Password</Label>
                   <Input id="password" name="password" type="password" autoComplete="current-password" />
                   {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="adminAccessCode">Company invite code <span className="text-xs text-muted-foreground">(required if you belong to a company)</span></Label>
+                  <Input id="adminAccessCode" name="adminAccessCode" />
                 </div>
                 <Button type="submit" disabled={pending} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                   {pending ? "Logging in…" : "Log in"}

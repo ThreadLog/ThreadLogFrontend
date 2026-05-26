@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -28,6 +29,11 @@ const TasksRoute = TasksRouteImport.update({
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogsRoute = LogsRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
+  '/profile': typeof ProfileRoute
   '/projects': typeof ProjectsRoute
   '/tasks': typeof TasksRoute
   '/signup/admin': typeof SignupAdminRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
+  '/profile': typeof ProfileRoute
   '/projects': typeof ProjectsRoute
   '/tasks': typeof TasksRoute
   '/signup/admin': typeof SignupAdminRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
+  '/profile': typeof ProfileRoute
   '/projects': typeof ProjectsRoute
   '/tasks': typeof TasksRoute
   '/signup/admin': typeof SignupAdminRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/logs'
+    | '/profile'
     | '/projects'
     | '/tasks'
     | '/signup/admin'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/logs'
+    | '/profile'
     | '/projects'
     | '/tasks'
     | '/signup/admin'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/logs'
+    | '/profile'
     | '/projects'
     | '/tasks'
     | '/signup/admin'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   LogsRoute: typeof LogsRoute
+  ProfileRoute: typeof ProfileRoute
   ProjectsRoute: typeof ProjectsRoute
   TasksRoute: typeof TasksRoute
   SignupAdminRoute: typeof SignupAdminRoute
@@ -174,6 +187,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logs': {
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   LogsRoute: LogsRoute,
+  ProfileRoute: ProfileRoute,
   ProjectsRoute: ProjectsRoute,
   TasksRoute: TasksRoute,
   SignupAdminRoute: SignupAdminRoute,

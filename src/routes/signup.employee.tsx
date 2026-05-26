@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { registerEmployeeLocal } from "@/lib/local-auth";
+import { registerEmployee, loginEmployee } from "@/lib/auth";
 
 export const Route = createFileRoute("/signup/employee")({
   head: () => ({
@@ -24,13 +24,11 @@ export const Route = createFileRoute("/signup/employee")({
 
 const schema = z
   .object({
-    companyName: z.string().min(1, "Company name is required").max(120),
     fullName: z.string().min(1, "Your full name is required").max(120),
     email: z.string().email("Enter a valid email").max(255),
-    phone: z.string().min(4, "Enter a valid phone number").max(40),
     password: z.string().min(8, "At least 8 characters"),
     confirmPassword: z.string(),
-    companyCode: z.string().min(3, "Enter the code from your company").max(64),
+    adminAccessCode: z.string().min(1, "Enter the code from your company").max(64),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Passwords do not match",
@@ -59,9 +57,13 @@ function EmployeeSignup() {
     }
     setPending(true);
     try {
-      const { confirmPassword: _c, ...rest } = parsed.data;
+      const { confirmPassword: _c, fullName, ...rest } = parsed.data;
       void _c;
-      registerEmployeeLocal(rest);
+      const nameParts = fullName.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      await registerEmployee({ firstName, lastName, ...rest });
+      await loginEmployee(rest.email, rest.password);
       toast.success("Account created!");
       navigate({ to: "/dashboard" });
     } catch (err) {
@@ -91,13 +93,11 @@ function EmployeeSignup() {
                     <AlertDescription>{formError}</AlertDescription>
                   </Alert>
                 )}
-                <Field id="companyName" label="Company name" error={errors.companyName} />
                 <Field id="fullName" label="Full name" autoComplete="name" error={errors.fullName} />
                 <Field id="email" label="Email" type="email" autoComplete="email" error={errors.email} />
-                <Field id="phone" label="Phone number" type="tel" autoComplete="tel" error={errors.phone} />
                 <Field id="password" label="Password" type="password" autoComplete="new-password" error={errors.password} />
                 <Field id="confirmPassword" label="Confirm password" type="password" autoComplete="new-password" error={errors.confirmPassword} />
-                <Field id="companyCode" label="Company invite code" error={errors.companyCode} />
+                <Field id="adminAccessCode" label="Company invite code" error={errors.adminAccessCode} />
                 <Button type="submit" disabled={pending} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                   {pending ? "Creating account…" : "Create account"}
                 </Button>

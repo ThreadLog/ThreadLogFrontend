@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/threadlog-logo.png";
-import { clearSession, getSession } from "@/lib/local-auth";
+import { clearSession, getSession } from "@/lib/auth";
 
 export function Navbar() {
   const { pathname } = useLocation();
@@ -45,6 +45,7 @@ export function Navbar() {
               <Link to="/logs" className="text-sm text-muted-foreground hover:text-foreground" activeProps={{ className: "text-sm text-foreground font-medium" }}>Logs</Link>
               <Link to="/tasks" className="text-sm text-muted-foreground hover:text-foreground" activeProps={{ className: "text-sm text-foreground font-medium" }}>Tasks</Link>
               <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground" activeProps={{ className: "text-sm text-foreground font-medium" }}>Projects</Link>
+              <Link to="/profile" className="text-sm text-muted-foreground hover:text-foreground" activeProps={{ className: "text-sm text-foreground font-medium" }}>Profile</Link>
             </nav>
             <Button
               size="sm"

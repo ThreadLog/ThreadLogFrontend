@@ -1,82 +1,72 @@
-import { useSyncExternalStore } from "react";
+import { apiGet, apiPost } from "./api";
+import { getSession } from "./auth";
 
-export type UpdateItem = {
-  id: string;
+function token() {
+  return getSession()?.token ?? "";
+}
+
+type Announcement = {
+  id: number;
   category: string;
   priority: "low" | "medium" | "high";
   description: string;
-  createdAt: number;
+  createdAt: string;
 };
-export type LogItem = { id: string; content: string; createdAt: number };
-export type ProjectItem = {
-  id: string;
+
+type Log = {
+  id: number;
+  content: string;
+  createdAt: string;
+};
+
+type Project = {
+  id: number;
   title: string;
   description: string;
   objective: string;
   keyFeature: string;
-  createdAt: number;
+  createdAt: string;
 };
-export type TaskItem = {
-  id: string;
+
+type Task = {
+  id: number;
   title: string;
   objective: string;
   cause: string;
-  createdAt: number;
+  createdAt: string;
 };
 
-type State = {
-  updates: UpdateItem[];
-  logs: LogItem[];
-  projects: ProjectItem[];
-  tasks: TaskItem[];
-};
-
-const KEY = "threadlog:workspace";
-const EMPTY: State = { updates: [], logs: [], projects: [], tasks: [] };
-
-function read(): State {
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
-  } catch {
-    return EMPTY;
-  }
-}
-
-let state: State = read();
-const listeners = new Set<() => void>();
-
-function write(next: State) {
-  state = next;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* ignore */
-  }
-  listeners.forEach((l) => l());
-}
-
-function subscribe(l: () => void) {
-  listeners.add(l);
-  return () => listeners.delete(l);
-}
-
-export function useWorkspace(): State {
-  return useSyncExternalStore(
-    subscribe,
-    () => state,
-    () => EMPTY,
-  );
+export function useWorkspace() {
+  return { updates: [] as Announcement[], logs: [] as Log[], projects: [] as Project[], tasks: [] as Task[] };
 }
 
 export const actions = {
-  addUpdate: (u: Omit<UpdateItem, "id" | "createdAt">) =>
-    write({ ...state, updates: [{ ...u, id: crypto.randomUUID(), createdAt: Date.now() }, ...state.updates] }),
-  addLog: (content: string) =>
-    write({ ...state, logs: [{ id: crypto.randomUUID(), content, createdAt: Date.now() }, ...state.logs] }),
-  addProject: (p: Omit<ProjectItem, "id" | "createdAt">) =>
-    write({ ...state, projects: [{ ...p, id: crypto.randomUUID(), createdAt: Date.now() }, ...state.projects] }),
-  addTask: (t: Omit<TaskItem, "id" | "createdAt">) =>
-    write({ ...state, tasks: [{ ...t, id: crypto.randomUUID(), createdAt: Date.now() }, ...state.tasks] }),
+  async addUpdate(u: { category: string; priority: "low" | "medium" | "high"; description: string }) {
+    return apiPost<{ announcement: Announcement }>("/workspace/announcements", u, token());
+  },
+  async addLog(content: string) {
+    return apiPost<{ log: Log }>("/workspace/logs", { content }, token());
+  },
+  async addProject(p: { title: string; description: string; objective: string; keyFeature: string }) {
+    return apiPost<{ project: Project }>("/workspace/projects", p, token());
+  },
+  async addTask(t: { title: string; objective: string; cause: string }) {
+    return apiPost<{ task: Task }>("/workspace/tasks", t, token());
+  },
+  async fetchUpdates(): Promise<Announcement[]> {
+    const res = await apiGet<{ announcements: Announcement[] }>("/workspace/announcements", token());
+    return res.announcements;
+  },
+  async fetchLogs(): Promise<Log[]> {
+    const res = await apiGet<{ logs: Log[] }>("/workspace/logs", token());
+    return res.logs;
+  },
+  async fetchProjects(): Promise<Project[]> {
+    const res = await apiGet<{ projects: Project[] }>("/workspace/projects", token());
+    return res.projects;
+  },
+  async fetchTasks(): Promise<Task[]> {
+    const res = await apiGet<{ tasks: Task[] }>("/workspace/tasks", token());
+    return res.tasks;
+  },
 };

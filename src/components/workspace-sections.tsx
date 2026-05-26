@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,11 +21,43 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Activity, ClipboardList, FolderKanban, MessageSquare, Plus } from "lucide-react";
+import { Activity, ClipboardList, FolderKanban, MessageSquare, Plus, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { actions, useWorkspace, type UpdateItem } from "@/lib/workspace-store";
+import { actions } from "@/lib/workspace-store";
+import { toast } from "sonner";
 
-const priorityStyles: Record<UpdateItem["priority"], string> = {
+type Announcement = {
+  id: number;
+  category: string;
+  priority: "low" | "medium" | "high";
+  description: string;
+  createdAt: string;
+};
+
+type LogItem = {
+  id: number;
+  content: string;
+  createdAt: string;
+};
+
+type ProjectItem = {
+  id: number;
+  title: string;
+  description: string;
+  objective: string;
+  keyFeature: string;
+  createdAt: string;
+};
+
+type TaskItem = {
+  id: number;
+  title: string;
+  objective: string;
+  cause: string;
+  createdAt: string;
+};
+
+const priorityStyles: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
   medium: "bg-primary/10 text-primary",
   high: "bg-destructive/10 text-destructive",
@@ -102,24 +134,38 @@ function SectionShell({
 }
 
 export function AnnouncementsSection({ hideAdd, scrollable, scrollHeight }: SectionProps = {}) {
-  const { updates } = useWorkspace();
+  const [updates, setUpdates] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState("");
-  const [priority, setPriority] = useState<UpdateItem["priority"] | "">("");
+  const [priority, setPriority] = useState<string>("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  useEffect(() => {
+    actions.fetchUpdates().then(setUpdates).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cat = category.trim();
     const desc = description.trim();
     if (!cat) return setError("Category is required.");
     if (!priority) return setError("Select a priority.");
     if (!desc) return setError("Description is required.");
-    if (cat.length > 60) return setError("Category must be under 60 characters.");
-    if (desc.length > 500) return setError("Description must be under 500 characters.");
-    actions.addUpdate({ category: cat, priority, description: desc });
-    setCategory(""); setPriority(""); setDescription(""); setError(null); setOpen(false);
+    setSubmitting(true);
+    try {
+      await actions.addUpdate({ category: cat, priority: priority as "low" | "medium" | "high", description: desc });
+      const fresh = await actions.fetchUpdates();
+      setUpdates(fresh);
+      setCategory(""); setPriority(""); setDescription(""); setError(null); setOpen(false);
+      toast.success("Announcement posted!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to post announcement");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -129,22 +175,26 @@ export function AnnouncementsSection({ hideAdd, scrollable, scrollHeight }: Sect
         description="Latest activity across your team."
         icon={Activity}
         onAdd={() => setOpen(true)}
-        isEmpty={updates.length === 0}
+        isEmpty={updates.length === 0 && !loading}
         emptyLabel="No updates yet"
         emptyHint="Team updates will appear here as they're posted."
         hideAdd={hideAdd}
         scrollable={scrollable}
         scrollHeight={scrollHeight}
       >
-        {updates.map((it) => (
-          <li key={it.id} className="py-3">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-foreground">{it.category}</p>
-              <Badge className={priorityStyles[it.priority]} variant="secondary">{it.priority}</Badge>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">{it.description}</p>
-          </li>
-        ))}
+        {loading ? (
+          <li className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></li>
+        ) : (
+          updates.map((it) => (
+            <li key={it.id} className="py-3">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground">{it.category}</p>
+                <Badge className={priorityStyles[it.priority]} variant="secondary">{it.priority}</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{it.description}</p>
+            </li>
+          ))
+        )}
       </SectionShell>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -160,7 +210,7 @@ export function AnnouncementsSection({ hideAdd, scrollable, scrollHeight }: Sect
             </div>
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as UpdateItem["priority"])}>
+              <Select value={priority} onValueChange={(v) => setPriority(v)}>
                 <SelectTrigger id="priority"><SelectValue placeholder="Select priority" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
@@ -176,7 +226,7 @@ export function AnnouncementsSection({ hideAdd, scrollable, scrollHeight }: Sect
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit">Submit</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? "Posting…" : "Submit"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -186,18 +236,33 @@ export function AnnouncementsSection({ hideAdd, scrollable, scrollHeight }: Sect
 }
 
 export function LogsSection({ hideAdd, scrollable, scrollHeight }: SectionProps = {}) {
-  const { logs } = useWorkspace();
+  const [logs, setLogs] = useState<LogItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  useEffect(() => {
+    actions.fetchLogs().then(setLogs).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = content.trim();
     if (!c) return setError("Log can't be empty.");
-    if (c.length > 1000) return setError("Log must be under 1000 characters.");
-    actions.addLog(c);
-    setContent(""); setError(null); setOpen(false);
+    setSubmitting(true);
+    try {
+      await actions.addLog(c);
+      const fresh = await actions.fetchLogs();
+      setLogs(fresh);
+      setContent(""); setError(null); setOpen(false);
+      toast.success("Log saved!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save log");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -207,19 +272,23 @@ export function LogsSection({ hideAdd, scrollable, scrollHeight }: SectionProps 
         description="Decisions and notes from your workspace."
         icon={MessageSquare}
         onAdd={() => setOpen(true)}
-        isEmpty={logs.length === 0}
+        isEmpty={logs.length === 0 && !loading}
         emptyLabel="No logs yet"
         emptyHint="Start a log to keep your team aligned."
         hideAdd={hideAdd}
         scrollable={scrollable}
         scrollHeight={scrollHeight}
       >
-        {logs.map((it) => (
-          <li key={it.id} className="py-3">
-            <p className="whitespace-pre-wrap text-sm text-foreground">{it.content}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{new Date(it.createdAt).toLocaleString()}</p>
-          </li>
-        ))}
+        {loading ? (
+          <li className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></li>
+        ) : (
+          logs.map((it) => (
+            <li key={it.id} className="py-3">
+              <p className="whitespace-pre-wrap text-sm text-foreground">{it.content}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{new Date(it.createdAt).toLocaleString()}</p>
+            </li>
+          ))
+        )}
       </SectionShell>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -236,7 +305,7 @@ export function LogsSection({ hideAdd, scrollable, scrollHeight }: SectionProps 
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit">Submit</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : "Submit"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -246,27 +315,39 @@ export function LogsSection({ hideAdd, scrollable, scrollHeight }: SectionProps 
 }
 
 export function ProjectsSection({ hideAdd, scrollable, scrollHeight }: SectionProps = {}) {
-  const { projects } = useWorkspace();
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [objective, setObjective] = useState("");
   const [keyFeature, setKeyFeature] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  useEffect(() => {
+    actions.fetchProjects().then(setProjects).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const t = title.trim(), d = description.trim(), o = objective.trim(), k = keyFeature.trim();
     if (!t) return setError("Title is required.");
     if (!d) return setError("Description is required.");
     if (!o) return setError("Objective is required.");
     if (!k) return setError("Key feature is required.");
-    if (t.length > 80) return setError("Title must be under 80 characters.");
-    if (d.length > 500) return setError("Description must be under 500 characters.");
-    if (o.length > 300) return setError("Objective must be under 300 characters.");
-    if (k.length > 200) return setError("Key feature must be under 200 characters.");
-    actions.addProject({ title: t, description: d, objective: o, keyFeature: k });
-    setTitle(""); setDescription(""); setObjective(""); setKeyFeature(""); setError(null); setOpen(false);
+    setSubmitting(true);
+    try {
+      await actions.addProject({ title: t, description: d, objective: o, keyFeature: k });
+      const fresh = await actions.fetchProjects();
+      setProjects(fresh);
+      setTitle(""); setDescription(""); setObjective(""); setKeyFeature(""); setError(null); setOpen(false);
+      toast.success("Project created!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create project");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -276,25 +357,29 @@ export function ProjectsSection({ hideAdd, scrollable, scrollHeight }: SectionPr
         description="Active initiatives in your company."
         icon={FolderKanban}
         onAdd={() => setOpen(true)}
-        isEmpty={projects.length === 0}
+        isEmpty={projects.length === 0 && !loading}
         emptyLabel="No projects yet"
         emptyHint="Create a project to get the team moving."
         hideAdd={hideAdd}
         scrollable={scrollable}
         scrollHeight={scrollHeight}
       >
-        {projects.map((it) => (
-          <li key={it.id} className="py-3">
-            <p className="text-sm font-medium text-foreground">{it.title}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{it.description}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Objective:</span> {it.objective}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Key feature:</span> {it.keyFeature}
-            </p>
-          </li>
-        ))}
+        {loading ? (
+          <li className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></li>
+        ) : (
+          projects.map((it) => (
+            <li key={it.id} className="py-3">
+              <p className="text-sm font-medium text-foreground">{it.title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{it.description}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Objective:</span> {it.objective}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Key feature:</span> {it.keyFeature}
+              </p>
+            </li>
+          ))
+        )}
       </SectionShell>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -323,7 +408,7 @@ export function ProjectsSection({ hideAdd, scrollable, scrollHeight }: SectionPr
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit">Submit</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? "Creating…" : "Submit"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -333,24 +418,37 @@ export function ProjectsSection({ hideAdd, scrollable, scrollHeight }: SectionPr
 }
 
 export function TasksSection({ hideAdd, scrollable, scrollHeight }: SectionProps = {}) {
-  const { tasks } = useWorkspace();
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [objective, setObjective] = useState("");
   const [cause, setCause] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  useEffect(() => {
+    actions.fetchTasks().then(setTasks).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const t = title.trim(), o = objective.trim(), c = cause.trim();
     if (!t) return setError("Title is required.");
     if (!o) return setError("Objective is required.");
     if (!c) return setError("Cause is required.");
-    if (t.length > 80) return setError("Title must be under 80 characters.");
-    if (o.length > 300) return setError("Objective must be under 300 characters.");
-    if (c.length > 500) return setError("Cause must be under 500 characters.");
-    actions.addTask({ title: t, objective: o, cause: c });
-    setTitle(""); setObjective(""); setCause(""); setError(null); setOpen(false);
+    setSubmitting(true);
+    try {
+      await actions.addTask({ title: t, objective: o, cause: c });
+      const fresh = await actions.fetchTasks();
+      setTasks(fresh);
+      setTitle(""); setObjective(""); setCause(""); setError(null); setOpen(false);
+      toast.success("Task created!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create task");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -360,24 +458,28 @@ export function TasksSection({ hideAdd, scrollable, scrollHeight }: SectionProps
         description="Work assigned to you and your team."
         icon={ClipboardList}
         onAdd={() => setOpen(true)}
-        isEmpty={tasks.length === 0}
+        isEmpty={tasks.length === 0 && !loading}
         emptyLabel="No tasks yet"
         emptyHint="New tasks will show up here once created."
         hideAdd={hideAdd}
         scrollable={scrollable}
         scrollHeight={scrollHeight}
       >
-        {tasks.map((it) => (
-          <li key={it.id} className="py-3">
-            <p className="text-sm font-medium text-foreground">{it.title}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Objective:</span> {it.objective}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Cause:</span> {it.cause}
-            </p>
-          </li>
-        ))}
+        {loading ? (
+          <li className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></li>
+        ) : (
+          tasks.map((it) => (
+            <li key={it.id} className="py-3">
+              <p className="text-sm font-medium text-foreground">{it.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Objective:</span> {it.objective}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Cause:</span> {it.cause}
+              </p>
+            </li>
+          ))
+        )}
       </SectionShell>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -402,7 +504,7 @@ export function TasksSection({ hideAdd, scrollable, scrollHeight }: SectionProps
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit">Submit</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? "Creating…" : "Submit"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
