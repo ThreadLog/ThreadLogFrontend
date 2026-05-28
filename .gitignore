@@ -3,3 +3,8 @@ dist/
 .DS_Store
 .env
 .env.*
+.output/
+.vercel/
+.vinxi/
+.tanstack/
+tmp/

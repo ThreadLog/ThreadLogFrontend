@@ -34,8 +34,13 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const navigate = useNavigate();
   const session = getSession();
-  const isAdmin = session?.role === "admin";
-  const apiBase = isAdmin ? `/companyrecruiter/${session!.id}` : `/jobseekers/${session!.id}`;
+
+  if (!session) {
+    return null;
+  }
+
+  const isAdmin = session.role === "admin";
+  const apiBase = isAdmin ? `/companyrecruiter/${session.id}` : `/jobseekers/${session.id}`;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,8 +138,6 @@ function ProfilePage() {
       setShowDelete(false);
     }
   }
-
-  if (!session) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
