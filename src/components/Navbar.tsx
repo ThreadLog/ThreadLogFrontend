@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import logo from "@/assets/threadlog-logo.png";
 import { clearSession, getSession } from "@/lib/auth";
 
+const PROTECTED_PATHS = ["/dashboard", "/announcements", "/logs", "/tasks", "/projects", "/profile"];
+
 export function Navbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const showLandingActions = pathname === "/";
+  const isLanding = pathname === "/";
+  const isProtected = PROTECTED_PATHS.includes(pathname);
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
@@ -17,11 +20,11 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link to={hasSession ? "/dashboard" : "/"} className="flex items-center gap-2">
+        <Link to={isLanding ? "/" : hasSession && isProtected ? "/dashboard" : "/"} className="flex items-center gap-2">
           <img src={logo} alt="ThreadLog" className="h-8 w-auto" />
         </Link>
 
-        {showLandingActions ? (
+        {isLanding ? (
           <>
             <nav className="hidden items-center gap-8 md:flex">
               <a href="/#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a>
@@ -37,7 +40,7 @@ export function Navbar() {
               </Button>
             </div>
           </>
-        ) : hasSession ? (
+        ) : isProtected && hasSession ? (
           <>
             <nav className="hidden items-center gap-6 md:flex">
               <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground" activeProps={{ className: "text-sm text-foreground font-medium" }} activeOptions={{ exact: true }}>Dashboard</Link>

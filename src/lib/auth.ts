@@ -43,7 +43,7 @@ type RegisterAdminRes = {
 function safeStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage;
+    return window.sessionStorage;
   } catch {
     return null;
   }

@@ -10,6 +10,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { InactivityTracker } from "@/components/InactivityTracker";
 
 function NotFoundComponent() {
   return (
@@ -112,6 +113,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <Outlet />
       <Toaster />
+      <InactivityTracker />
     </QueryClientProvider>
   );
 }
