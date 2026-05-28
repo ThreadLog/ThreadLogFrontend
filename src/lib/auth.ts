@@ -5,7 +5,7 @@ const SESSION_KEY = "threadlog:session";
 export type Session = {
   token: string;
   email: string;
-  role: "employee" | "admin";
+  role: "employee" | "admin" | "recruiter";
   name: string;
   id: number;
   companyId: number | null;
@@ -136,7 +136,7 @@ export async function loginCompanyRecruiter(email: string, password: string): Pr
   const session: Session = {
     token: c.token,
     email: c.email,
-    role: "employee",
+    role: "recruiter",
     name: c.companyName,
     id: c.id,
     companyId: c.id,

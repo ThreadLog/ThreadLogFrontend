@@ -39,7 +39,7 @@ function ProfilePage() {
     return null;
   }
 
-  const isAdmin = session.role === "admin";
+  const isAdmin = session.role === "admin" || session.role === "recruiter";
   const apiBase = isAdmin ? `/companyrecruiter/${session.id}` : `/jobseekers/${session.id}`;
 
   const [loading, setLoading] = useState(true);
