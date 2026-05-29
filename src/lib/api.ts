@@ -1,11 +1,15 @@
 function resolveApiBase(): string {
-  const raw = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ?? "http://localhost:4000/api";
+  let raw = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ?? "http://localhost:4000/api";
   try {
     new URL(raw);
-    return raw;
   } catch {
-    return `https://${raw}`;
+    raw = `https://${raw}`;
   }
+  raw = raw.replace(/\/+$/, "");
+  if (!raw.endsWith("/api")) {
+    raw += "/api";
+  }
+  return raw;
 }
 
 const API_BASE = resolveApiBase();
