@@ -1,4 +1,14 @@
-const API_BASE = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ?? "http://localhost:4000/api";
+function resolveApiBase(): string {
+  const raw = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ?? "http://localhost:4000/api";
+  try {
+    new URL(raw);
+    return raw;
+  } catch {
+    return `https://${raw}`;
+  }
+}
+
+const API_BASE = resolveApiBase();
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
