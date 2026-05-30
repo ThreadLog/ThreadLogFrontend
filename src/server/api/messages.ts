@@ -1,4 +1,4 @@
-import { prisma } from "../../lib/prisma";
+import { getPrisma } from "../../lib/prisma";
 import type { HandlerContext } from "./helpers";
 import { json, AppError, requireUser, restrictTo, parseId } from "./helpers";
 
@@ -18,7 +18,7 @@ export async function sendMessage(ctx: HandlerContext) {
   if (data.receiverRole === "JOB_SEEKER") message.receiverJobSeekerId = data.receiverId;
   else message.receiverRecruiterId = data.receiverId;
 
-  const created = await prisma.messages.create({ data: message });
+  const created = await getPrisma().messages.create({ data: message });
   return json({ status: "success", data: created }, 201);
 }
 
@@ -37,7 +37,7 @@ export async function getConversation(ctx: HandlerContext) {
   const otherSenderCol = otherRole === "JOB_SEEKER" ? "senderJobSeekerId" : "senderRecruiterId";
   const otherReceiverCol = otherRole === "JOB_SEEKER" ? "receiverJobSeekerId" : "receiverRecruiterId";
 
-  const messages = await prisma.messages.findMany({
+  const messages = await getPrisma().messages.findMany({
     where: {
       OR: [
         { [mySenderCol]: user.id, [otherReceiverCol]: otherId },
@@ -56,7 +56,7 @@ export async function getAllConversationsList(ctx: HandlerContext) {
 
   const receiverCol = user.role === "JOB_SEEKER" ? "receiverJobSeekerId" : "receiverRecruiterId";
 
-  const messages = await prisma.messages.findMany({
+  const messages = await getPrisma().messages.findMany({
     where: { [receiverCol]: user.id },
     orderBy: { createdAt: "desc" },
     include: {

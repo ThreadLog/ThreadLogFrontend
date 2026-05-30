@@ -265,12 +265,12 @@ export async function handleApiRequest(
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (path === "/health") {
-    return json({ status: "ok\u2705", timestamp: new Date().toISOString() });
+  if (path === "/") {
+    return null;
   }
 
-  if (path === "/") {
-    return json({ status: "running", timestamp: new Date().toISOString() });
+  if (path === "/health") {
+    return json({ status: "ok\u2705", timestamp: new Date().toISOString() });
   }
 
   if (!path.startsWith("/api/")) {

@@ -1,4 +1,4 @@
-import { prisma } from "../../lib/prisma";
+import { getPrisma } from "../../lib/prisma";
 import type { HandlerContext } from "./helpers";
 import { json, AppError, requireUser, restrictTo, parseId } from "./helpers";
 
@@ -27,12 +27,12 @@ export async function getAllJobs(ctx: HandlerContext) {
   if (category) where.category = { equals: category, mode: "insensitive" };
 
   const [jobs, total] = await Promise.all([
-    prisma.job.findMany({
+    getPrisma().job.findMany({
       where, skip: (page - 1) * limit, take: limit,
       select: { id: true, title: true, description: true, webpage_url: true, country: true, city: true, category: true, status: true, expiresAt: true, company: { select: { id: true, companyName: true, email: true, description: true, country: true, logoUrl: true } } },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.job.count({ where }),
+    getPrisma().job.count({ where }),
   ]);
 
   return json({ jobs, meta: { totalJobs: total, currentPage: page, totalPages: Math.ceil(total / limit) } });
@@ -42,7 +42,7 @@ export async function getJobById(ctx: HandlerContext) {
   const id = parseId(ctx.params.id);
   if (!id) return json({ message: "Invalid job id" }, 400);
 
-  const job = await prisma.job.findUnique({
+  const job = await getPrisma().job.findUnique({
     where: { id },
     select: { id: true, title: true, description: true, webpage_url: true, country: true, city: true, category: true, status: true, company: { select: { id: true, companyName: true, email: true, description: true, country: true, logoUrl: true } } },
   });
@@ -55,7 +55,7 @@ export async function createJob(ctx: HandlerContext) {
   restrictTo(user, "COMPANY_RECRUITER", "ADMIN");
   const data = ctx.body;
 
-  const job = await prisma.job.create({
+  const job = await getPrisma().job.create({
     data: { companyId: user.id, title: data.title, description: data.description, expiresAt: new Date(data.expiresAt), webpage_url: data.webpage_url, country: data.country, city: data.city, category: data.category },
   });
   return json(job, 201);
@@ -67,7 +67,7 @@ export async function updateJobById(ctx: HandlerContext) {
   const user = requireUser(ctx);
   restrictTo(user, "COMPANY_RECRUITER", "ADMIN");
 
-  const job = await prisma.job.findUnique({ where: { id } });
+  const job = await getPrisma().job.findUnique({ where: { id } });
   if (!job) throw new AppError("Job not found", 404);
   if (job.companyId !== user.id) throw new AppError("Forbidden", 403);
 
@@ -75,7 +75,7 @@ export async function updateJobById(ctx: HandlerContext) {
   const updatePayload: any = { ...data };
   if (data.expiresAt) updatePayload.expiresAt = new Date(data.expiresAt);
 
-  const updated = await prisma.job.update({ where: { id }, data: updatePayload });
+  const updated = await getPrisma().job.update({ where: { id }, data: updatePayload });
   return json({ status: "success", data: updated });
 }
 
@@ -85,11 +85,11 @@ export async function deleteJobById(ctx: HandlerContext) {
   const user = requireUser(ctx);
   restrictTo(user, "COMPANY_RECRUITER", "ADMIN");
 
-  const job = await prisma.job.findUnique({ where: { id } });
+  const job = await getPrisma().job.findUnique({ where: { id } });
   if (!job) throw new AppError(`Job with id ${id} not found`, 404);
   if (job.companyId !== user.id) throw new AppError("You are not the owner of this job", 403);
 
-  const deleted = await prisma.job.delete({ where: { id } });
+  const deleted = await getPrisma().job.delete({ where: { id } });
   return json({ status: `Job with id ${id} deleted successfully`, deleteJob: deleted });
 }
 
@@ -100,11 +100,11 @@ export async function changeJobStatus(ctx: HandlerContext) {
   restrictTo(user, "COMPANY_RECRUITER", "ADMIN");
   const { status } = ctx.body;
 
-  const job = await prisma.job.findUnique({ where: { id } });
+  const job = await getPrisma().job.findUnique({ where: { id } });
   if (!job) throw new AppError(`Job with id ${id} not found`, 404);
   if (job.companyId !== user.id) throw new AppError(`Forbidden: You are not the owner of job ${id}`, 403);
 
-  const updated = await prisma.job.update({ where: { id }, data: { status } });
+  const updated = await getPrisma().job.update({ where: { id }, data: { status } });
   return json({ status: "success", message: "Job status updated successfully", data: updated });
 }
 

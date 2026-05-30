@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import crypto from "node:crypto";
-import { prisma } from "../../lib/prisma";
+import { getPrisma } from "../../lib/prisma";
 import { signToken } from "../../lib/jwt";
 import type { HandlerContext } from "./helpers";
 import { json, AppError } from "./helpers";
@@ -11,12 +11,12 @@ function generateAdminAccessCode() {
 
 export async function registerJobSeeker(ctx: HandlerContext) {
   const data = ctx.body;
-  const existing = await prisma.jobSeeker.findUnique({ where: { email: data.email } });
+  const existing = await getPrisma().jobSeeker.findUnique({ where: { email: data.email } });
   if (existing) throw new AppError("Job seeker with that email already exists", 409);
 
   let companyId: number | undefined;
   if (data.adminAccessCode) {
-    const company = await prisma.companyRecruiter.findFirst({
+    const company = await getPrisma().companyRecruiter.findFirst({
       where: { adminAccessCode: data.adminAccessCode },
     });
     if (!company) throw new AppError("Invalid company access code", 400);
@@ -24,7 +24,7 @@ export async function registerJobSeeker(ctx: HandlerContext) {
   }
 
   const hashed = await bcrypt.hash(data.password, 12);
-  const created = await prisma.jobSeeker.create({
+  const created = await getPrisma().jobSeeker.create({
     data: { firstName: data.firstName, lastName: data.lastName, email: data.email, password: hashed, companyId },
     select: { id: true, firstName: true, lastName: true, email: true, companyId: true },
   });
@@ -33,13 +33,13 @@ export async function registerJobSeeker(ctx: HandlerContext) {
 
 export async function loginJobSeeker(ctx: HandlerContext) {
   const data = ctx.body;
-  const jobSeeker = await prisma.jobSeeker.findUnique({ where: { email: data.email } });
+  const jobSeeker = await getPrisma().jobSeeker.findUnique({ where: { email: data.email } });
   if (!jobSeeker || !(await bcrypt.compare(data.password, jobSeeker.password))) {
     throw new AppError("Invalid email or password", 401);
   }
 
   if (jobSeeker.companyId) {
-    const company = await prisma.companyRecruiter.findUnique({ where: { id: jobSeeker.companyId } });
+    const company = await getPrisma().companyRecruiter.findUnique({ where: { id: jobSeeker.companyId } });
     if (!company || company.adminAccessCode !== data.adminAccessCode) {
       throw new AppError("Invalid company invite code", 401);
     }
@@ -52,11 +52,11 @@ export async function loginJobSeeker(ctx: HandlerContext) {
 
 export async function registerCompanyRecruiter(ctx: HandlerContext) {
   const data = ctx.body;
-  const existing = await prisma.companyRecruiter.findUnique({ where: { email: data.email } });
+  const existing = await getPrisma().companyRecruiter.findUnique({ where: { email: data.email } });
   if (existing) throw new AppError("Company recruiter with that email already exists", 409);
 
   const hashed = await bcrypt.hash(data.password, 12);
-  const created = await prisma.companyRecruiter.create({
+  const created = await getPrisma().companyRecruiter.create({
     data: { email: data.email, companyName: data.companyName, password: hashed, organizationNumber: data.organizationNumber, phoneNumber: data.phoneNumber },
     select: { id: true, email: true, companyName: true, organizationNumber: true, phoneNumber: true },
   });
@@ -65,7 +65,7 @@ export async function registerCompanyRecruiter(ctx: HandlerContext) {
 
 export async function loginCompanyRecruiter(ctx: HandlerContext) {
   const data = ctx.body;
-  const recruiter = await prisma.companyRecruiter.findUnique({ where: { email: data.email } });
+  const recruiter = await getPrisma().companyRecruiter.findUnique({ where: { email: data.email } });
   if (!recruiter || !(await bcrypt.compare(data.password, recruiter.password))) {
     throw new AppError("Invalid email or password", 401);
   }
@@ -78,11 +78,11 @@ export async function loginCompanyRecruiter(ctx: HandlerContext) {
 export async function registerAdmin(ctx: HandlerContext) {
   const data = ctx.body;
   const adminAccessCode = data.adminAccessCode ?? generateAdminAccessCode();
-  const existing = await prisma.companyRecruiter.findUnique({ where: { email: data.companyEmail } });
+  const existing = await getPrisma().companyRecruiter.findUnique({ where: { email: data.companyEmail } });
   if (existing) throw new AppError("Admin with that email already exists", 409);
 
   const hashed = await bcrypt.hash(data.password, 12);
-  const created = await prisma.companyRecruiter.create({
+  const created = await getPrisma().companyRecruiter.create({
     data: {
       email: data.companyEmail, companyName: data.companyName, password: hashed,
       organizationNumber: data.organizationNumber, phoneNumber: data.companyPhone,
@@ -95,7 +95,7 @@ export async function registerAdmin(ctx: HandlerContext) {
 
 export async function loginAdmin(ctx: HandlerContext) {
   const data = ctx.body;
-  const admin = await prisma.companyRecruiter.findUnique({ where: { email: data.email } });
+  const admin = await getPrisma().companyRecruiter.findUnique({ where: { email: data.email } });
   if (!admin || admin.role !== "ADMIN" || !(await bcrypt.compare(data.password, admin.password))) {
     throw new AppError("Invalid email or password", 401);
   }
@@ -107,7 +107,7 @@ export async function loginAdmin(ctx: HandlerContext) {
 
 export async function loginAdminByCode(ctx: HandlerContext) {
   const data = ctx.body;
-  const admin = await prisma.companyRecruiter.findUnique({ where: { email: data.email } });
+  const admin = await getPrisma().companyRecruiter.findUnique({ where: { email: data.email } });
   if (!admin || admin.role !== "ADMIN" || !admin.adminAccessCode || admin.adminAccessCode !== data.adminAccessCode) {
     throw new AppError("Invalid email or access code", 401);
   }
@@ -121,7 +121,7 @@ export async function downloadAdminAccessCode(ctx: HandlerContext) {
   const adminId = ctx.user?.id;
   if (!adminId) throw new AppError("Unauthorized", 401);
 
-  const admin = await prisma.companyRecruiter.findUnique({
+  const admin = await getPrisma().companyRecruiter.findUnique({
     where: { id: adminId },
     select: { id: true, email: true, companyName: true, role: true, adminAccessCode: true },
   });

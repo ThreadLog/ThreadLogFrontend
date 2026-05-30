@@ -1,4 +1,4 @@
-import { prisma } from "../../lib/prisma";
+import { getPrisma } from "../../lib/prisma";
 import { sendSupportMail } from "../../lib/mailer";
 import type { HandlerContext } from "./helpers";
 import { json, AppError } from "./helpers";
@@ -10,7 +10,7 @@ export async function submitSupportTicket(ctx: HandlerContext) {
     return json({ error: "Missing fields" }, 400);
   }
 
-  const ticket = await prisma.supportTicket.create({
+  const ticket = await getPrisma().supportTicket.create({
     data: { firstname, lastname, email, message, sendAsEmail },
   });
 

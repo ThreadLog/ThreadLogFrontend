@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { prisma } from "../../lib/prisma";
+import { getPrisma } from "../../lib/prisma";
 import type { HandlerContext } from "./helpers";
 import { json, AppError, requireUser, requireOwnershipOrAdmin, parseId } from "./helpers";
 
@@ -22,12 +22,12 @@ export async function getJobSeekers(ctx: HandlerContext) {
   if (skills) where.skills = { has: skills };
 
   const [jobSeekers, total] = await Promise.all([
-    prisma.jobSeeker.findMany({
+    getPrisma().jobSeeker.findMany({
       where,
       skip: (page - 1) * limit, take: limit,
       select: { id: true, firstName: true, lastName: true, profilePicture: true, city: true, languages: true, skills: true, bio: true, portfolioLink: true },
     }),
-    prisma.jobSeeker.count({ where }),
+    getPrisma().jobSeeker.count({ where }),
   ]);
 
   return json({ jobSeekers, meta: { totalJobSeekers: total, currentPage: page, totalPages: Math.ceil(total / limit) } });
@@ -37,7 +37,7 @@ export async function getJobSeekerById(ctx: HandlerContext) {
   const id = parseId(ctx.params.id);
   if (!id) return json({ message: "Invalid job seeker id" }, 400);
 
-  const js = await prisma.jobSeeker.findUnique({
+  const js = await getPrisma().jobSeeker.findUnique({
     where: { id },
     select: { id: true, firstName: true, lastName: true, email: true, phoneNumber: true, city: true, country: true, languages: true, skills: true, bio: true, portfolioLink: true, personalStatement: true, profilePicture: true, cv: true, company: { select: { adminAccessCode: true, companyName: true } } },
   });
@@ -58,7 +58,7 @@ export async function updateJobSeekerById(ctx: HandlerContext) {
   const cvBuffer = data.cv ? Buffer.from(data.cv.split(",")[1] || data.cv, "base64") : undefined;
   const hashed = data.password ? await bcrypt.hash(data.password, 12) : undefined;
 
-  const updated = await prisma.jobSeeker.update({
+  const updated = await getPrisma().jobSeeker.update({
     where: { id },
     data: {
       firstName: data.firstName, lastName: data.lastName, email: data.email,
@@ -79,7 +79,7 @@ export async function deleteJobSeekerById(ctx: HandlerContext) {
   const user = requireUser(ctx);
   requireOwnershipOrAdmin(user, id);
 
-  const deleted = await prisma.jobSeeker.delete({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true } });
+  const deleted = await getPrisma().jobSeeker.delete({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true } });
   return json({ status: `Job seeker with id ${id} deleted successfully`, jobseeker: deleted });
 }
 
@@ -89,7 +89,7 @@ export async function getJobSeekerDashboard(ctx: HandlerContext) {
   const user = requireUser(ctx);
   requireOwnershipOrAdmin(user, id);
 
-  const js = await prisma.jobSeeker.findUnique({
+  const js = await getPrisma().jobSeeker.findUnique({
     where: { id },
     select: { id: true, firstName: true, lastName: true, email: true, accountCompletionRate: true, _count: { select: { applications: true, savedJobs: true } } },
   });

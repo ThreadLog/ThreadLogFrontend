@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { prisma } from "../../lib/prisma";
+import { getPrisma } from "../../lib/prisma";
 import type { HandlerContext } from "./helpers";
 import { json, AppError, requireUser, requireOwnershipOrAdmin, parseId } from "./helpers";
 
@@ -23,11 +23,11 @@ export async function getCompanyRecruiters(ctx: HandlerContext) {
   if (industry) where.industry = { equals: industry, mode: "insensitive" };
 
   const [records, total] = await Promise.all([
-    prisma.companyRecruiter.findMany({
+    getPrisma().companyRecruiter.findMany({
       where, skip: (page - 1) * limit, take: limit,
       select: { id: true, companyName: true, email: true, phoneNumber: true, description: true, country: true, city: true, industry: true, logoUrl: true, _count: { select: { jobs: { where: { status: "ACTIVE" } } } } },
     }),
-    prisma.companyRecruiter.count({ where }),
+    getPrisma().companyRecruiter.count({ where }),
   ]);
 
   return json({ status: "success", data: { companyRecruiters: records, meta: { totalCompanyRecruiters: total, currentPage: page, totalPages: Math.ceil(total / limit) } } });
@@ -37,7 +37,7 @@ export async function getCompanyRecruiterById(ctx: HandlerContext) {
   const id = parseId(ctx.params.id);
   if (!id) return json({ message: "Invalid company recruiter id" }, 400);
 
-  const record = await prisma.companyRecruiter.findUnique({
+  const record = await getPrisma().companyRecruiter.findUnique({
     where: { id },
     select: { id: true, companyName: true, email: true, phoneNumber: true, description: true, organizationNumber: true, logoUrl: true, city: true, country: true, industry: true, adminAccessCode: true, _count: { select: { jobs: { where: { status: "ACTIVE" } } } } },
   });
@@ -55,7 +55,7 @@ export async function updateCompanyRecruiterById(ctx: HandlerContext) {
   const data = ctx.body;
   const hashed = data.password ? await bcrypt.hash(data.password, 12) : undefined;
 
-  const updated = await prisma.companyRecruiter.update({
+  const updated = await getPrisma().companyRecruiter.update({
     where: { id },
     data: { companyName: data.companyName, email: data.email, phoneNumber: data.phoneNumber, password: hashed, description: data.description, organizationNumber: data.organizationNumber, logoUrl: data.logoUrl, city: data.city, country: data.country, industry: data.industry },
     select: { id: true, companyName: true, email: true, phoneNumber: true, description: true, organizationNumber: true, logoUrl: true, city: true, country: true, industry: true },
@@ -70,9 +70,9 @@ export async function deleteCompanyRecruiterById(ctx: HandlerContext) {
   const user = requireUser(ctx);
   requireOwnershipOrAdmin(user, id);
 
-  const existing = await prisma.companyRecruiter.findUnique({ where: { id } });
+  const existing = await getPrisma().companyRecruiter.findUnique({ where: { id } });
   if (!existing) return json({ message: `Company recruiter with id ${id} not found` }, 404);
 
-  const deleted = await prisma.companyRecruiter.delete({ where: { id }, select: { id: true, companyName: true, email: true, phoneNumber: true, description: true, organizationNumber: true, logoUrl: true, city: true, country: true, industry: true } });
+  const deleted = await getPrisma().companyRecruiter.delete({ where: { id }, select: { id: true, companyName: true, email: true, phoneNumber: true, description: true, organizationNumber: true, logoUrl: true, city: true, country: true, industry: true } });
   return json({ status: "success", data: deleted });
 }
