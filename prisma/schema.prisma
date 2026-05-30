@@ -1,0 +1,196 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model JobSeeker {
+  id                    Int               @id @default(autoincrement())
+  email                 String            @unique
+  firstName             String
+  lastName              String
+  password              String
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  role                  Role              @default(JOB_SEEKER)
+  phoneNumber           String?
+  city                  String?
+  languages             String[]
+  skills                String[]
+  bio                   String?
+  portfolioLink         String?
+  accountCompletionRate Int               @default(0)
+  personalStatement     String?
+  profilePicture        Bytes?
+  cv                    Bytes?
+  country               String?
+  companyId             Int?
+  applications          Application[]
+  company               CompanyRecruiter? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  receivedMessages      Messages[]        @relation("JobSeekerReceivedMessages")
+  sentMessages          Messages[]        @relation("JobSeekerSentMessages")
+  savedCompanies        SavedCompany[]
+  savedJobs             SavedJob[]
+}
+
+model CompanyRecruiter {
+  id                 Int                @id @default(autoincrement())
+  email              String             @unique
+  companyName        String
+  password           String
+  organizationNumber String             @unique
+  description        String?
+  phoneNumber        String             @unique
+  logoUrl            String?
+  role               Role               @default(COMPANY_RECRUITER)
+  city               String?
+  country            String?
+  industry           String?
+  adminAccessCode    String?            @unique
+  announcements      Announcement[]
+  jobs               Job[]
+  employees          JobSeeker[]
+  receivedMessages   Messages[]         @relation("RecruiterReceivedMessages")
+  sentMessages       Messages[]         @relation("RecruiterSentMessages")
+  savedBySeekers     SavedCompany[]
+  logs               WorkspaceLog[]
+  projects           WorkspaceProject[]
+  tasks              WorkspaceTask[]
+}
+
+model Job {
+  id           Int              @id @default(autoincrement())
+  companyId    Int
+  title        String
+  description  String
+  status       JobStatus        @default(ACTIVE)
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  category     String?
+  city         String?
+  country      String?
+  webpage_url  String?
+  applications Application[]
+  company      CompanyRecruiter @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  savedBy      SavedJob[]
+}
+
+model Messages {
+  id                  Int               @id @default(autoincrement())
+  content             String
+  senderJobSeekerId   Int?
+  senderRecruiterId   Int?
+  receiverJobSeekerId Int?
+  receiverRecruiterId Int?
+  createdAt           DateTime          @default(now())
+  receiverJobSeeker   JobSeeker?        @relation("JobSeekerReceivedMessages", fields: [receiverJobSeekerId], references: [id])
+  receiverRecruiter   CompanyRecruiter? @relation("RecruiterReceivedMessages", fields: [receiverRecruiterId], references: [id])
+  senderJobSeeker     JobSeeker?        @relation("JobSeekerSentMessages", fields: [senderJobSeekerId], references: [id])
+  senderRecruiter     CompanyRecruiter? @relation("RecruiterSentMessages", fields: [senderRecruiterId], references: [id], onDelete: Cascade)
+}
+
+model Application {
+  id          Int               @id @default(autoincrement())
+  status      ApplicationStatus @default(PENDING)
+  appliedAt   DateTime          @default(now())
+  jobSeekerId Int
+  jobId       Int
+  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobSeeker   JobSeeker         @relation(fields: [jobSeekerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobSeekerId, jobId])
+}
+
+model SavedJob {
+  id          Int       @id @default(autoincrement())
+  savedAt     DateTime  @default(now())
+  jobSeekerId Int
+  jobId       Int
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobSeeker   JobSeeker @relation(fields: [jobSeekerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobSeekerId, jobId])
+}
+
+model SavedCompany {
+  id          Int              @id @default(autoincrement())
+  savedAt     DateTime         @default(now())
+  jobSeekerId Int
+  companyId   Int
+  company     CompanyRecruiter @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobSeeker   JobSeeker        @relation(fields: [jobSeekerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobSeekerId, companyId])
+}
+
+model Announcement {
+  id          Int              @id @default(autoincrement())
+  companyId   Int
+  category    String
+  priority    String
+  description String
+  createdAt   DateTime         @default(now())
+  company     CompanyRecruiter @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceLog {
+  id        Int              @id @default(autoincrement())
+  companyId Int
+  content   String
+  createdAt DateTime         @default(now())
+  company   CompanyRecruiter @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceProject {
+  id          Int              @id @default(autoincrement())
+  companyId   Int
+  title       String
+  description String
+  objective   String
+  keyFeature  String
+  createdAt   DateTime         @default(now())
+  company     CompanyRecruiter @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceTask {
+  id        Int              @id @default(autoincrement())
+  companyId Int
+  title     String
+  objective String
+  cause     String
+  createdAt DateTime         @default(now())
+  company   CompanyRecruiter @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model SupportTicket {
+  id          String   @id @default(cuid())
+  firstname   String
+  lastname    String
+  email       String
+  message     String
+  sendAsEmail Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
+  JOB_SEEKER
+  COMPANY_RECRUITER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum JobStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
