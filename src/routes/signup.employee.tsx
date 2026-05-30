@@ -63,7 +63,7 @@ function EmployeeSignup() {
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ") || "";
       await registerEmployee({ firstName, lastName, ...rest });
-      await loginEmployee(rest.email, rest.password);
+      await loginEmployee(rest.email, rest.password, rest.adminAccessCode);
       toast.success("Account created!");
       navigate({ to: "/dashboard" });
     } catch (err) {
